@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.mypack.dao.UserDao">
+	
+	<resultMap type="User" id="getUser">
+		<id property="id" column="id"/>
+		<result property="username" column="username"/>
+		<result property="password" column="password"/>
+		<result property="tel" column="tel"/>
+		<result property="email" column="email"/>
+		<association property="role" javaType="Role">
+			<id property="id" column="roleId"/>
+			<result property="rolename" column="rolename"/>
+		</association>
+	</resultMap>
+	
+	<resultMap type="Menu" id="getMenu">
+ 		<id property="id" column="id"/>
+		<result property="menuname" column="menuname"/>
+ 	</resultMap>
+ 	
+ 	
+ 	<select id="queryAllMenusByRoleId" resultMap="getMenu">	
+ 		select
+ 		   rm.roleId,
+ 		   rm.menuId, 
+ 		   m.menuname, 
+ 		   m.url 
+ 		 from 
+ 		  role_menu rm ,
+ 		  menu m 
+ 		 where 
+ 		 	rm.menuId=m.id 
+ 		 and 
+ 		  rm.roleId=#{roleId}
+ 	</select>
+ 	
+	<select id="queryOneUser" resultMap="getUser">
+		select u.id,u.username,u.password, u.tel, u.email ,ur.roleId,r.rolename from user u LEFT JOIN user_role ur ON u.id=ur.userId LEFT JOIN role r ON ur.roleId=r.id WHERE u.username=#{username}
+	</select>
+	
+	<select id="queryOneUserById" resultMap="getUser">
+		select * from user u LEFT JOIN user_role ur ON u.id=ur.userId LEFT JOIN role r ON ur.roleId=r.id WHERE u.id=#{id}
+	</select>
+	
+	<select id="queryAllUser" resultMap="getUser">
+		select * from user u LEFT JOIN user_role ur ON u.id=ur.userId LEFT JOIN role r ON ur.roleId=r.id
+	</select>
+	
+	<update id="updateUser">
+		update user u set u.username=#{username},u.password=#{password},u.tel=#{tel},u.email=#{email} where u.id=#{id}
+	</update>
+	
+	<update id="updateRole">
+		update user_role ur set ur.roleId=#{roleId} where ur.userId=#{userId}
+	</update>
+	
+	<insert id="addUser">
+		insert into user values(#{id},#{username},#{password},#{tel},#{email})
+	</insert>
+	
+	<insert id="addRole">
+		insert into user_role values(#{userId},#{roleId})
+	</insert>
+	
+	<delete id="deleteUserById">
+		delete from user where id=#{id}
+	</delete>
+	
+	<delete id="deleteUserRole">
+		delete from user_role where userId=#{userId}
+	</delete>
+	
+	<select id="queryMaxUserId" resultType="int">
+		select max(id) from user 
+	</select>
+</mapper>

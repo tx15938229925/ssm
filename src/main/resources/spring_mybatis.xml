@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:p="http://www.springframework.org/schema/p"
+	xmlns:context="http://www.springframework.org/schema/context" xmlns:tx="http://www.springframework.org/schema/tx"
+	xsi:schemaLocation="  
+        http://www.springframework.org/schema/beans  
+        http://www.springframework.org/schema/beans/spring-beans-4.3.xsd  
+        http://www.springframework.org/schema/context  
+        http://www.springframework.org/schema/context/spring-context-4.3.xsd  
+        http://www.springframework.org/schema/tx  
+        http://www.springframework.org/schema/tx/spring-tx-4.3.xsd">
+
+	<!-- 引入外部properties文件 -->
+	<context:property-placeholder location="classpath:/db.properties" />
+
+
+	<!--配置druid连接池 -->
+	<bean id="dataSource" class="com.alibaba.druid.pool.DruidDataSource"
+		init-method="init" destroy-method="close">
+		<property name="validationQuery" value="select 1" />
+		<property name="testWhileIdle" value="true" />
+		<property name="testOnBorrow" value="false" />
+		<property name="testOnReturn" value="false" />
+
+		<property name="keepAlive" value="true" />
+		<!-- <property name="phyMaxUseCount" value="100000" /> -->
+
+		<!-- 配置监控统计拦截的filters -->
+		<property name="filters" value="config,stat,wall" />
+		<!--数据库驱动 -->
+		<property name="driverClassName" value="${jdbc.driver}" />
+		<!--连接数据库的url -->
+		<property name="url" value="${jdbc.url}" />
+		<!--连接数据库的用户名 -->
+		<property name="username" value="${jdbc.username}" />
+		<!--连接数据库的密码 -->
+		<property name="password" value="${jdbc.password}" />
+		<property name="connectionProperties"
+			value="config.decrypt=true;config.decrypt.key=${jdbc.publicKey}" />
+		<!--初始化连接数 -->
+		<property name="initialSize" value="${jdbc.initialSize}" />
+		<!--最大连接数 -->
+		<property name="maxActive" value="${jdbc.maxActive}" />
+		<!--最小空闲连接 -->
+		<property name="minIdle" value="${jdbc.minIdle}" />
+	</bean>
+
+
+
+	<!-- 配置SqlSessionFactory对象 -->
+	<bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
+		<property name="dataSource" ref="dataSource" />
+		<property name="configLocation" value="classpath:mybatis_config.xml" />
+		
+	</bean>
+
+	<!-- 自动扫描 将Mapper接口生成代理注入到Spring 基于xml方式的 -->
+	<bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+		<property name="basePackage" value="com.mypack.dao" />
+	</bean>
+
+	<!-- 配置引入映射文件 注意：基于接口的方式和基于注解方式不一样 -->
+	<!-- 基于注解的 -->
+	<!-- <bean id="userDao" class="org.mybatis.spring.mapper.MapperFactoryBean"> 
+		<property name="mapperInterface" value="com.mypack.dao.UserDao" /> <property 
+		name="sqlSessionFactory" ref="sqlSessionFactory" /> </bean> -->
+
+	<!-- 配置事务的注解支持 -->
+	<tx:annotation-driven />
+
+	<!-- 配置事务管理器 -->
+	<bean id="transactionManager"
+		class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+		<property name="dataSource" ref="dataSource" />
+	</bean>
+
+
+
+
+	<!-- 配置shiro -->
+	
+	<!-- 1. 直接配置一个 securityManager (安全管理器) -->
+	<bean id="securityManager" class="org.apache.shiro.web.mgt.DefaultWebSecurityManager">
+		<property name="cacheManager" ref="cacheManager"></property>
+		<property name="realm" ref="jdbcRealm"></property>
+	</bean>
+	
+	<!-- 2. 配置cacheManager 缓存管理器-->
+	<bean id="cacheManager" class="org.apache.shiro.cache.ehcache.EhCacheManager">
+		<property name="cacheManagerConfigFile" value="classpath:/ehcache.xml"></property>
+	</bean>
+	
+	<!-- 3. 配置Realm  实现了realm接口的bean-->
+	<bean id="jdbcRealm" class="com.mypack.realms.ShiroRealm"></bean>
+	
+	
+	<!-- 4. 配置生命周期LifecycleBeanPostProcessor 可以自动很高的调用配置在spring IOC容器中 shiro bean 的生命周期方法-->
+	<bean id="lifecycleBeanPostProcessor" class="org.apache.shiro.spring.LifecycleBeanPostProcessor" />
+
+
+	<!-- 5. 启用 IOC 容器中的注解,但必须在配置了lifecycleBeanPostProcessor之后才能使用 -->
+	<bean class="org.springframework.aop.framework.autoproxy.DefaultAdvisorAutoProxyCreator" depends-on="lifecycleBeanPostProcessor"/>	
+	<bean class="org.apache.shiro.spring.security.interceptor.AuthorizationAttributeSourceAdvisor">
+		<property name="securityManager" ref="securityManager"></property>
+	</bean>
+	
+	
+	<!-- 
+		6. 配置shiroFilter
+		   id必须和web.xml里面DelegatingFilterProxy <filter-name>名字一致
+	 -->
+	<bean id="shiroFilter" class="org.apache.shiro.spring.web.ShiroFilterFactoryBean">
+		<!--shiro整个的处理，都由securityManger指定和决定 -->
+		<property name="securityManager" ref="securityManager" />
+		<!-- loginUrl认证提交地址，如果没有认证将会请求此地址进行认证，请求此地址将由formAuthenticationFilter进行拦截表单认证-->
+		<property name="loginUrl" value="/login.jsp" />
+		<!--认证成功统一跳转到first.action,建议不配置-->
+		<!-- <property name="successUrl" value="/loginVerify" /> -->
+		<!-- 验证不通过执行的请求或者跳转 -->
+		<property name="unauthorizedUrl" value="/unauthorized.jsp" />
+		<!-- 具体的拦截路径和拦截的方式和角色和权限的范围 -->
+		
+		<!--anon 可以被匿名访问
+			authc 必须认证 也就是登录后才可以访问
+			logout 表示登出的过滤器
+		  -->
+		<property name="filterChainDefinitions">
+			<value>
+				/login.jsp = anon
+				/loginVerify=anon
+				
+				/listAllUser = roles[用户管理]
+				/2.jsp = roles[权限管理]
+				
+				/logout = logout
+				/** = authc
+			</value>
+		</property>
+	</bean>
+</beans>
